@@ -34,17 +34,16 @@ Edit
 git clone [(https://github.com/pritam16raha/ai_voice_assistant.git)](https://github.com/pritam16raha/ai_voice_assistant.git) revolt-voice
 cd server
 
-# server deps
-cd server
-npm i
-npm run dev
+```md
+# server deps  
+cd server  
+npm i  
+npm run dev  
 
----
-
-# client deps
-cd ../client
-npm i
-npm run dev
+# client deps  
+cd ../client  
+npm i  
+npm run dev 
 
 
 2) Configure environment
