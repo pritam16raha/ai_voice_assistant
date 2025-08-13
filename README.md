@@ -39,6 +39,8 @@ cd server
 npm i
 npm run dev
 
+---
+
 # client deps
 cd ../client
 npm i
