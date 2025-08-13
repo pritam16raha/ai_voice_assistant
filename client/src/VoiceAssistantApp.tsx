@@ -78,9 +78,17 @@ class PCMPlayer extends AudioWorkletProcessor {
   constructor() {
     super();
     this.queue = [];
-    this.port.onmessage = (e) => { if (e.data && e.data.length) this.queue.push(e.data); };
+    this.paused = false;
+    this.port.onmessage = (e) => {
+      const d = e.data;
+      if (d && d.cmd === 'flush') { this.queue = []; return; }
+      if (d && d.cmd === 'pause') { this.paused = true; return; }
+      if (d && d.cmd === 'resume') { this.paused = false; return; }
+      if (d && d.length !== undefined) { this.queue.push(d); }
+    };
   }
   process(_inputs, outputs) {
+    if (this.paused) return true;
     const output = outputs[0][0];
     output.fill(0);
     if (this.queue.length === 0) return true;
@@ -203,6 +211,14 @@ export default function VoiceAssistantApp({ wsUrl }: Props) {
   const micNodeRef = useRef<ScriptProcessorNode | null>(null);
   const micStreamRef = useRef<MediaStream | null>(null);
 
+  const speakingRef = useRef<boolean>(false);
+  useEffect(() => {
+    speakingRef.current = speaking;
+  }, [speaking]);
+
+  const lastBargeAtRef = useRef<number>(0);
+  const ignoreAudioUntilRef = useRef<number>(0);
+
   async function ensurePlayback(): Promise<void> {
     if (ctxRef.current) return;
 
@@ -238,6 +254,30 @@ export default function VoiceAssistantApp({ wsUrl }: Props) {
     const v = rms(f32);
     setLevelOut((p) => p * 0.6 + v * 0.8);
     playNodeRef.current.port.postMessage(f32);
+  }
+
+  function flushPlayback(): void {
+    if (playNodeRef.current) {
+      playNodeRef.current.port.postMessage({ cmd: "flush" });
+    }
+  }
+
+  function bargeIn(): void {
+    const now = performance.now();
+    if (now - lastBargeAtRef.current < 250) return; // debounce
+    lastBargeAtRef.current = now;
+
+    // Drop anything already queued to the speakers
+    flushPlayback();
+
+    // Ignore any late audio frames for a short window
+    ignoreAudioUntilRef.current = now + 300;
+
+    // Tell the server to cancel the current response
+    wsRef.current?.send(JSON.stringify({ type: "barge" }));
+
+    // Stop the speaking visual
+    setSpeaking(false);
   }
 
   function appendChat(item: ChatItem): void {
@@ -314,6 +354,7 @@ export default function VoiceAssistantApp({ wsUrl }: Props) {
           break;
 
         case "audio": {
+          if (performance.now() < ignoreAudioUntilRef.current) break;
           const f32 = base64PCMtoFloat32(parsed.base64);
           setSpeaking(true);
           pushPlayback(f32);
@@ -366,6 +407,9 @@ export default function VoiceAssistantApp({ wsUrl }: Props) {
         const f16 = resampleFloat32(inBuf, micCtx!.sampleRate, 16000);
         const b64 = float32ToPCM16Base64(f16);
         wsRef.current.send(JSON.stringify({ type: "audio", base64: b64 }));
+        if (speakingRef.current && v > 0.005) {
+          bargeIn();
+        }
       };
     } catch (err) {
       console.error("Mic error", err);

@@ -31,8 +31,8 @@ A Gemini API key (server uses the Gemini API via @google/genai)
 bash
 Copy
 Edit
-git clone <your-repo-url> revolt-voice
-cd revolt-voice
+git clone [(https://github.com/pritam16raha/ai_voice_assistant.git)](https://github.com/pritam16raha/ai_voice_assistant.git) revolt-voice
+cd server
 
 # server deps
 cd server
@@ -41,6 +41,8 @@ npm i
 # client deps
 cd ../client
 npm i
+
+
 2) Configure environment
 Create server/.env (copy from .env.example if present):
 
