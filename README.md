@@ -37,10 +37,12 @@ cd server
 # server deps
 cd server
 npm i
+npm run dev
 
 # client deps
 cd ../client
 npm i
+npm run dev
 
 
 2) Configure environment
